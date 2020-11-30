@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "todoapp-fastapi"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.61.1"
+sqlalchemy = {git = "https://github.com/sqlalchemy/sqlalchemy.git"}
+uvicorn = "^0.12.2"
+python-dotenv = "^0.15.0"
+gunicorn = "^20.0.4"
+uvloop = "^0.14.0"
+httptools = "^0.1.1"
+PyMySQL = "^0.10.1"
+
+[tool.poetry.dev-dependencies]
+ipython = "^7.19.0"
+Faker = "^4.14.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
