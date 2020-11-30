@@ -16,7 +16,6 @@ def create_app():
     settings = get_settings()
     db_engine = create_async_engine(
         settings.sqlalchemy_database_url, 
-        poolclass=NullPool
     )
     Session = scoped_session(sessionmaker(db_engine, class_=AsyncSession))
 
