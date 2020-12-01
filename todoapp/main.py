@@ -58,7 +58,7 @@ def create_flask_app():
     from flask import Flask, jsonify
     from flask_sqlalchemy import SQLAlchemy
     from sqlalchemy import select
-    
+
     from .users.models import User
 
     app = Flask(__name__)
@@ -70,7 +70,7 @@ def create_flask_app():
 
     @app.route('/users', methods=['GET'])
     def users():
-        result = db.session.execute(
+        result = db.engine.execute(
             select(User.id, User.email, User.first_name, User.last_name, User.created_at)
         )
         result.all()
