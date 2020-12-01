@@ -1,20 +1,21 @@
 import logging
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Depends
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.pool import AsyncAdaptedQueuePool
+from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
 from .api.users import user_router
 from .config import get_settings
-from .database import scoped_session
+from .database import get_db
 
 logger = logging.getLogger(__name__)
 
 
-def create_app():
+def create_fastapi_app():
     api = FastAPI()
 
     settings = get_settings()
@@ -23,23 +24,35 @@ def create_app():
         poolclass=AsyncAdaptedQueuePool,
         pool_recycle=180,
     )
-    Session = scoped_session(sessionmaker(bind=db_engine, class_=AsyncSession, expire_on_commit=False))
+    DbSession = sessionmaker(bind=db_engine, class_=AsyncSession, expire_on_commit=False)
+
+    @api.get('/ping')
+    async def ping_db(db_session: AsyncSession = Depends(get_db)):
+        result = await db_session.execute(text('select 1'))
+
+        return result.scalar_one()
 
     api.include_router(user_router, prefix='/users')
 
+    if settings.preload:
+        @api.on_event('startup')
+        async def dispose_db_engine_for_gunicorn_preload():
+            await db_engine.dispose()
+
+
     @api.middleware("http")
     async def db_session_middleware(request: Request, call_next):
-        request.state.db = Session()
+        request.state.db = DbSession()
         resp = Response('Internal Server Error', 500)
         try:
             resp = await call_next(request)
-        except Exception as e:
-            logger.exception(e)
-            await Session.remove()
+        finally:
+            await request.state.db.close()
         return resp
 
     return api
 
+fastapiapp = create_fastapi_app()
 
 def create_flask_app():
     from flask import Flask, jsonify

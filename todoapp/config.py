@@ -5,6 +5,7 @@ from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     sqlalchemy_database_uri: str
+    preload: bool = False
 
     class Config:
         env_file = ".env"
