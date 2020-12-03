@@ -37,9 +37,9 @@ def create_fastapi_app():
     )
     read_db_conn: AsyncConnection = None
 
-    @event.listens_for(db_engine.pool, "checkout")
-    def receive_checkout(dbapi_conn, conn_record, conn_proxy):
-        conn_proxy.info["connected_at"] = datetime.now()
+    @event.listens_for(autocommit_db_engine.sync_engine, "after_execute")
+    def receive_after_execute(conn, *args):
+        conn.connection.info["last_exec_at"] = datetime.now()
 
     @api.get("/ping")
     async def ping_db(db_session: AsyncSession = Depends(get_db)):
@@ -63,10 +63,13 @@ def create_fastapi_app():
             if not read_db_conn:
                 read_db_conn = await autocommit_db_engine.connect()
             else:
-                conn_connected_at = read_db_conn.sync_connection.connection.info[
-                    "connected_at"
-                ]
-                if datetime.now() - conn_connected_at >= timedelta(seconds=180):
+                conn_connected_at = read_db_conn.sync_connection.connection.info.get(
+                    "last_exec_at"
+                )
+                if (
+                    conn_connected_at
+                    and datetime.now() - conn_connected_at >= timedelta(seconds=180)
+                ):
                     await read_db_conn.invalidate()
                     await read_db_conn.close()
                     read_db_conn = await autocommit_db_engine.connect()
