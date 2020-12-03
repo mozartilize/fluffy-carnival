@@ -13,7 +13,7 @@ from starlette.requests import Request
 
 from .api.users import user_router
 from .config import get_settings
-from .database import get_db
+from .database import get_db, LazyAsyncConnection
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def create_fastapi_app():
     DbSession: AsyncSession = sessionmaker(
         bind=db_engine, class_=AsyncSession, expire_on_commit=False
     )
-    read_db_conn: AsyncConnection = None
+    read_db_conn = LazyAsyncConnection(autocommit_db_engine)
 
     @event.listens_for(autocommit_db_engine.sync_engine, "after_execute")
     def receive_after_execute(conn, *args):
@@ -57,31 +57,19 @@ def create_fastapi_app():
 
     @api.middleware("http")
     async def db_session_middleware(request: Request, call_next):
-        nonlocal read_db_conn
         request.state.db: Union[AsyncConnection, AsyncSession]
         if request.method not in ["POST", "PUT", "PATCH", "DELETE"]:
-            if not read_db_conn:
-                read_db_conn = await autocommit_db_engine.connect()
-            else:
-                conn_connected_at = read_db_conn.sync_connection.connection.info.get(
-                    "last_exec_at"
-                )
-                if (
-                    conn_connected_at
-                    and datetime.now() - conn_connected_at >= timedelta(seconds=180)
-                ):
-                    await read_db_conn.invalidate()
-                    await read_db_conn.close()
-                    read_db_conn = await autocommit_db_engine.connect()
+            if (
+                read_db_conn.last_exec_at
+                and datetime.now() - read_db_conn.last_exec_at >= timedelta(seconds=180)
+            ):
+                await read_db_conn.dispose()
             request.state.db = read_db_conn
         else:
             request.state.db = DbSession()
-        resp = Response("Internal Server Error", 500)
-        try:
-            resp = await call_next(request)
-        finally:
-            if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-                await request.state.db.close()
+        resp = await call_next(request)
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            await request.state.db.close()
         return resp
 
     return api
