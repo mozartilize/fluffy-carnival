@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+import time
 import logging
 from typing import Union
 
@@ -39,7 +39,7 @@ def create_fastapi_app():
 
     @event.listens_for(autocommit_db_engine.sync_engine, "after_execute")
     def receive_after_execute(conn, *args):
-        conn.connection.info["last_exec_at"] = datetime.now()
+        conn.connection.info["last_exec_at"] = time.time()
 
     @api.get("/ping")
     async def ping_db(db_session: AsyncSession = Depends(get_db)):
@@ -61,7 +61,7 @@ def create_fastapi_app():
         if request.method not in ["POST", "PUT", "PATCH", "DELETE"]:
             if (
                 read_db_conn.last_exec_at
-                and datetime.now() - read_db_conn.last_exec_at >= timedelta(seconds=180)
+                and time.time() - read_db_conn.last_exec_at >= 180
             ):
                 await read_db_conn.dispose()
             request.state.db = read_db_conn
