@@ -13,7 +13,9 @@ async def insert_users(db: AsyncSession, users: List[User]) -> NoReturn:
     await db.commit()
 
 
-async def autogen_users_and_insert_to_db(db: AsyncSession, total: int, batch: int) -> NoReturn:
+async def autogen_users_and_insert_to_db(
+    db: AsyncSession, total: int, batch: int
+) -> NoReturn:
     faker = Faker()
     for i in range(int(total / batch)):
         users = [
