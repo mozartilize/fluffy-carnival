@@ -17,6 +17,8 @@ from .database import get_db, LazyAsyncConnection
 
 logger = logging.getLogger(__name__)
 
+HTTP_WRITE_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
+
 
 def create_fastapi_app():
     api = FastAPI()
@@ -58,7 +60,7 @@ def create_fastapi_app():
     @api.middleware("http")
     async def db_session_middleware(request: Request, call_next):
         request.state.db: Union[AsyncConnection, AsyncSession]
-        if request.method not in ["POST", "PUT", "PATCH", "DELETE"]:
+        if request.method not in HTTP_WRITE_METHODS:
             if (
                 read_db_conn.last_exec_at
                 and time.time() - read_db_conn.last_exec_at >= 180
@@ -68,7 +70,7 @@ def create_fastapi_app():
         else:
             request.state.db = DbSession()
         resp = await call_next(request)
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+        if request.method in HTTP_WRITE_METHODS:
             await request.state.db.close()
         return resp
 
