@@ -49,6 +49,12 @@ def create_fastapi_app():
 
         return result.scalar_one()
 
+    @api.get("/sleep")
+    async def sleep_db_conn(db_session: AsyncSession = Depends(get_db)):
+        result = await db_session.execute(text("select sleep(3)"))
+
+        return result.scalar_one()
+
     api.include_router(user_router, prefix="/users")
 
     if settings.preload:

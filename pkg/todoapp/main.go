@@ -52,6 +52,7 @@ func main() {
 
 	// Routes
 	e.GET("/users", users)
+	e.GET("/sleep", sleepDBConn)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
@@ -67,4 +68,16 @@ func users(c echo.Context) error {
 		panic(error)
 	}
 	return c.JSON(http.StatusOK, users)
+}
+
+func sleepDBConn(c echo.Context) error {
+	cc := c.(*CustomContext)
+	db := cc.db
+	var i int
+	row := db.QueryRow("select sleep(3) as i")
+	error := row.Scan(&i)
+	if error != nil {
+		panic(error)
+	}
+	return c.JSON(http.StatusOK, i)
 }
