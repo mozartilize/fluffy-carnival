@@ -6,29 +6,21 @@ from starlette.requests import Request
 DbModel = declarative_base()
 
 
-class LazyAsyncConnection:
-    def __init__(self, engine):
-        self._engine = engine
-        self._conn = AsyncConnection(self._engine)
-
-    def __getattribute__(self, attr):
-        if attr in ['_engine', '_conn', 'last_exec_at', 'dispose']:
-            return super().__getattribute__(attr)
-        if not self._conn.sync_connection:
-            self._conn.sync_connection = self._engine.sync_engine.connect()
-
-        return getattr(self._conn, attr)
-
+class LazyAsyncConnection(AsyncConnection):
     @property
     def last_exec_at(self):
-        if self._conn.sync_connection:
-            return self._conn.sync_connection.connection.info.get('last_exec_at')
+        if self.sync_connection:
+            return self.sync_connection.connection.info.get("last_exec_at")
+
+    def _sync_connection(self):
+        if not self.sync_connection:
+            self.sync_connection = self.sync_engine.connect()
+        return self.sync_connection
 
     async def dispose(self):
-        await self._conn.invalidate()
-        await self._conn.close()
-        self._conn = AsyncConnection(self._engine)
-
+        await self.invalidate()
+        await self.close()
+        self.sync_connection = None
 
 
 def get_db(request: Request) -> AsyncSession:

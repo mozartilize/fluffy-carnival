@@ -8,7 +8,7 @@ from sqlalchemy import text, event
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, AsyncConnection
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
 from starlette.requests import Request
 
 from .api.users import user_router
@@ -44,14 +44,14 @@ def create_fastapi_app():
         conn.connection.info["last_exec_at"] = time.time()
 
     @api.get("/ping")
-    async def ping_db(db_session: AsyncSession = Depends(get_db)):
-        result = await db_session.execute(text("select 1"))
+    async def ping_db(db_conn: LazyAsyncConnection = Depends(get_db)):
+        result = await db_conn.execute(text("select 1"))
 
         return result.scalar_one()
 
     @api.get("/sleep")
-    async def sleep_db_conn(db_session: AsyncSession = Depends(get_db)):
-        result = await db_session.execute(text("select sleep(3)"))
+    async def sleep_db_conn(db_conn: LazyAsyncConnection = Depends(get_db)):
+        result = await db_conn.execute(text("select sleep(3)"))
 
         return result.scalar_one()
 
@@ -65,7 +65,7 @@ def create_fastapi_app():
 
     @api.middleware("http")
     async def db_session_middleware(request: Request, call_next):
-        request.state.db: Union[AsyncConnection, AsyncSession]
+        request.state.db: Union[LazyAsyncConnection, AsyncSession]
         if request.method not in HTTP_WRITE_METHODS:
             if (
                 read_db_conn.last_exec_at

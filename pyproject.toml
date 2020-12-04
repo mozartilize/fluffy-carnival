@@ -17,6 +17,7 @@ httptools = "^0.1.1"
 PyMySQL = "^0.10.1"
 flask = "^1.1.2"
 flask-sqlalchemy = "^2.4.4"
+mariadb = "^1.0.5"
 
 [tool.poetry.dev-dependencies]
 ipython = "^7.19.0"
